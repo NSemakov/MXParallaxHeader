@@ -47,7 +47,11 @@ typedef NS_ENUM(NSInteger, MXParallaxHeaderMode) {
     /**
      The option to center the content aligned at the bottom in the header’s bounds.
      */
-    MXParallaxHeaderModeBottom
+    MXParallaxHeaderModeBottom,
+    /**
+     The option to center the content aligned at the bottom in the header’s bounds and don't fix height with required constraint.
+     */
+    MXParallaxHeaderModeBottomFixed
 };
 
 @protocol MXParallaxHeaderDelegate;

@@ -153,6 +153,10 @@ static void * const kMXParallaxHeaderKVOContext = (void*)&kMXParallaxHeaderKVOCo
         case MXParallaxHeaderModeBottom:
             [self setBottomModeConstraints];
             break;
+
+        case MXParallaxHeaderModeBottomFixed:
+            [self setFixBottomModeConstraints];
+            break;
             
         default:
             [self setCenterModeConstraints];
@@ -209,6 +213,14 @@ static void * const kMXParallaxHeaderKVOContext = (void*)&kMXParallaxHeaderKVOCo
     [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[v]|" options:0 metrics:nil views:binding]];
     [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:[v(==height)]|" options:0 metrics:metrics views:binding]];
 }
+
+- (void)setFixBottomModeConstraints {
+    NSDictionary *binding = @{@"v" : self.view};
+    NSDictionary *metrics = @{@"height" : @(self.height)};
+    [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[v]|" options:0 metrics:nil views:binding]];
+    [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:[v(==height@750)]|" options:0 metrics:metrics views:binding]];
+}
+
 
 #pragma mark Private Methods
 
