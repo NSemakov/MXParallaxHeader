@@ -34,7 +34,6 @@
 @implementation MXScrollView {
     BOOL _isObserving;
     BOOL _lock; // Content scroll view lock
-    BOOL _selfLock; // Self scroll view lock
 }
 
 static void * const kMXScrollViewKVOContext = (void*)&kMXScrollViewKVOContext;
@@ -145,7 +144,6 @@ static void * const kMXScrollViewKVOContext = (void*)&kMXScrollViewKVOContext;
 
 - (void)addObserverToView:(UIScrollView *)scrollView {
     _lock = (scrollView.contentOffset.y > -scrollView.contentInset.top);
-    _selfLock = _lock;
 
     [scrollView addObserver:self
                  forKeyPath:NSStringFromSelector(@selector(contentOffset))
@@ -176,7 +174,7 @@ static void * const kMXScrollViewKVOContext = (void*)&kMXScrollViewKVOContext;
         if (object == self) {
             
             //Adjust self scroll offset when scroll down
-            if (diff > 0 && _selfLock) {
+            if (diff > 0) {
                 [self scrollView:self setContentOffset:old];
                 
             } else if (self.contentOffset.y < -self.contentInset.top && !self.bounces) {
@@ -189,11 +187,9 @@ static void * const kMXScrollViewKVOContext = (void*)&kMXScrollViewKVOContext;
             //Adjust the observed scrollview's content offset
             UIScrollView *scrollView = object;
             _lock = (scrollView.contentOffset.y > -scrollView.contentInset.top);
-            _selfLock = _lock;
 
             //Manage scroll up
             if (self.contentOffset.y < -self.parallaxHeader.minimumHeight && _lock && diff < 0) {
-                _selfLock = NO;
                 [self scrollView:scrollView setContentOffset:old];
             }
             //Disable bouncing when scroll down
