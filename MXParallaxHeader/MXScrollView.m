@@ -237,6 +237,7 @@ static void * const kMXScrollViewKVOContext = (void*)&kMXScrollViewKVOContext;
 
 - (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
     _lock = NO;
+    _selfLock = NO;
     [self removeObservedViews];
 }
 
