@@ -33,8 +33,7 @@
 
 @implementation MXScrollView {
     BOOL _isObserving;
-    BOOL _lock; // Content scroll view lock
-    BOOL _selfLock; // Self scroll view lock
+    BOOL _lock;
 }
 
 static void * const kMXScrollViewKVOContext = (void*)&kMXScrollViewKVOContext;
@@ -129,6 +128,19 @@ static void * const kMXScrollViewKVOContext = (void*)&kMXScrollViewKVOContext;
         return NO;
     }
     
+    // Make scrollView able to bounce in bottom.
+    if (gestureRecognizer.view == self && [gestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]) {
+        UIPanGestureRecognizer* gr = (UIPanGestureRecognizer *)gestureRecognizer;
+        // Use velocity, because it always works in comparison with -translationInView, which can return zero point.
+        // Negative velocity signs that scrollView goes up.
+        CGPoint velocity = [gr velocityInView:gestureRecognizer.view];
+        
+        // Should able to bounce only if content size is not fitted on screen
+        if ((self.contentOffset.y >= -self.parallaxHeader.minimumHeight) && (velocity.y < 0) && scrollView.contentSize.height > (self.bounds.size.height - self.parallaxHeader.minimumHeight)) {
+            [self setScrollEnabled:NO];
+        }
+    }
+    
     BOOL shouldScroll = YES;
     if ([self.delegate respondsToSelector:@selector(scrollView:shouldScrollWithSubView:)]) {
         shouldScroll = [self.delegate scrollView:self shouldScrollWithSubView:scrollView];;
@@ -145,8 +157,7 @@ static void * const kMXScrollViewKVOContext = (void*)&kMXScrollViewKVOContext;
 
 - (void)addObserverToView:(UIScrollView *)scrollView {
     _lock = (scrollView.contentOffset.y > -scrollView.contentInset.top);
-    _selfLock = _lock;
-
+    
     [scrollView addObserver:self
                  forKeyPath:NSStringFromSelector(@selector(contentOffset))
                     options:NSKeyValueObservingOptionOld|NSKeyValueObservingOptionNew
@@ -176,24 +187,27 @@ static void * const kMXScrollViewKVOContext = (void*)&kMXScrollViewKVOContext;
         if (object == self) {
             
             //Adjust self scroll offset when scroll down
-            if (diff > 0 && _selfLock) {
+            
+            if (diff > 0 && _lock) {
                 [self scrollView:self setContentOffset:old];
-                
             } else if (self.contentOffset.y < -self.contentInset.top && !self.bounces) {
                 [self scrollView:self setContentOffset:CGPointMake(self.contentOffset.x, -self.contentInset.top)];
             } else if (self.contentOffset.y > -self.parallaxHeader.minimumHeight) {
                 [self scrollView:self setContentOffset:CGPointMake(self.contentOffset.x, -self.parallaxHeader.minimumHeight)];
             }
-            
         } else {
             //Adjust the observed scrollview's content offset
             UIScrollView *scrollView = object;
             _lock = (scrollView.contentOffset.y > -scrollView.contentInset.top);
-            _selfLock = _lock;
-
+            // Turn on scroll of self.scrollView. Need this when in the bottom and want to bounce. Without it self.scrollView manually saved at previous contentOffset and this blocks inner scrollView.
+            [self setScrollEnabled:YES];
+            
+            // Fast stop of self.scrollView if it's decelerating. Without it scrollView stops for 2 seconds which blocks user interaction.
+            // Need also fix when sometimes header is blocked in condition: "if (diff > 0 && _lock)..."
+            [self performSelector:@selector(innerScrollDidFinishScroll:) withObject:scrollView afterDelay:0.1];
+            
             //Manage scroll up
             if (self.contentOffset.y < -self.parallaxHeader.minimumHeight && _lock && diff < 0) {
-                _selfLock = NO;
                 [self scrollView:scrollView setContentOffset:old];
             }
             //Disable bouncing when scroll down
@@ -207,6 +221,14 @@ static void * const kMXScrollViewKVOContext = (void*)&kMXScrollViewKVOContext;
 }
 
 #pragma mark Scrolling views handlers
+
+- (void)innerScrollDidFinishScroll:(UIScrollView *)scrollView {
+    if (!scrollView.isDecelerating) {
+        CGPoint offset = self.contentOffset;
+        _lock = NO;
+        [self setContentOffset:offset animated:NO];
+    }
+}
 
 - (void)addObservedView:(UIScrollView *)scrollView {
     if (![self.observedViews containsObject:scrollView]) {
@@ -237,12 +259,14 @@ static void * const kMXScrollViewKVOContext = (void*)&kMXScrollViewKVOContext;
 
 - (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
     _lock = NO;
+    [self setScrollEnabled:YES];
     [self removeObservedViews];
 }
 
 - (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate {
     if (!decelerate) {
         _lock = NO;
+        [self setScrollEnabled:YES];
         [self removeObservedViews];
     }
 }
